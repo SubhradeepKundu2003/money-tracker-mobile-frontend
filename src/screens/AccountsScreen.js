@@ -27,9 +27,10 @@ const TYPE_ICON = {
 
 export default function AccountsScreen({ navigation }) {
   const { user } = useAuth();
-  const { accountsApi } = useRepo();
+  const { accountsApi, transactionsApi, budgetsApi } = useRepo();
   const [accounts, setAccounts] = useState([]);
   const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
   const baseCurrency = user?.baseCurrency || 'INR';
 
   const load = useCallback(async () => {
@@ -50,16 +51,48 @@ export default function AccountsScreen({ navigation }) {
       .catch((e) => setError(e.message));
   };
 
+  // The backend won't delete an account while transactions (or budgets) still
+  // reference it, so clear those dependents first, then remove the account.
+  // Mirrors the cascade the local guest store already does in one step.
+  const deleteAccount = async (accId) => {
+    const budgets = await budgetsApi.list();
+    await Promise.all(
+      budgets
+        .filter((b) => b.accountId === accId)
+        .map((b) => budgetsApi.remove(b.id)),
+    );
+
+    const ids = [];
+    for (let page = 0; ; page += 1) {
+      const res = await transactionsApi.search({ accountId: accId, page, size: 100 });
+      (res.content || []).forEach((t) => ids.push(t.id));
+      if (res.last || !(res.content || []).length) break;
+    }
+    await Promise.all(ids.map((id) => transactionsApi.remove(id)));
+
+    await accountsApi.remove(accId);
+  };
+
   const onDelete = (acc) => {
-    Alert.alert('Delete account', `Delete "${acc.name}"? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () =>
-          accountsApi.remove(acc.id).then(load).catch((e) => setError(e.message)),
-      },
-    ]);
+    Alert.alert(
+      'Delete account',
+      `Delete "${acc.name}"? Its transactions and budgets will also be removed. This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setError(null);
+            setBusy(true);
+            deleteAccount(acc.id)
+              .then(load)
+              .catch((e) => setError(e.message || 'Could not delete the account.'))
+              .finally(() => setBusy(false));
+          },
+        },
+      ],
+    );
   };
 
   const renderItem = ({ item }) => (
@@ -83,10 +116,16 @@ export default function AccountsScreen({ navigation }) {
         <Text style={styles.accBalance}>{formatMoney(item.balance, item.currency)}</Text>
       </Pressable>
       <View style={styles.accActions}>
-        <Text style={styles.action} onPress={() => onArchive(item)}>
+        <Text
+          style={[styles.action, busy && styles.actionDisabled]}
+          onPress={() => !busy && onArchive(item)}
+        >
           {item.archived ? 'Unarchive' : 'Archive'}
         </Text>
-        <Text style={[styles.action, { color: colors.danger }]} onPress={() => onDelete(item)}>
+        <Text
+          style={[styles.action, { color: colors.danger }, busy && styles.actionDisabled]}
+          onPress={() => !busy && onDelete(item)}
+        >
           Delete
         </Text>
       </View>
@@ -152,4 +191,5 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
   },
   action: { fontWeight: '700', color: colors.primary, marginLeft: spacing.lg },
+  actionDisabled: { opacity: 0.4 },
 });

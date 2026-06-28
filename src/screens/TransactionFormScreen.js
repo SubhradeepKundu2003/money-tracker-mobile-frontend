@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Field, Banner, Pill, EmptyState } from '../components/ui';
+import { Button, Field, Banner, Pill, EmptyState, KeyboardAwareScrollView } from '../components/ui';
+import { DateField } from '../components/DateField';
 import { useRepo } from '../data/repo';
 import { todayIso } from '../utils/format';
 import { colors, spacing } from '../theme';
@@ -100,13 +94,8 @@ export default function TransactionFormScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Banner message={error} />
+    <KeyboardAwareScrollView edges={['bottom']} contentContainerStyle={styles.container}>
+      <Banner message={error} />
 
           <View style={styles.typeRow}>
             <Pill
@@ -161,12 +150,10 @@ export default function TransactionFormScreen({ navigation, route }) {
             </View>
           )}
 
-          <Field
+          <DateField
             label="Date"
             value={occurredOn}
-            onChangeText={setOccurredOn}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
+            onChange={setOccurredOn}
           />
 
           <Field
@@ -183,9 +170,7 @@ export default function TransactionFormScreen({ navigation, route }) {
             loading={loading}
             style={{ marginTop: spacing.md }}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScrollView>
   );
 }
 

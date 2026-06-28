@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Field, Banner, Pill, EmptyState } from '../components/ui';
+import { Button, Field, Banner, Pill, EmptyState, KeyboardAwareScrollView } from '../components/ui';
 import { useRepo } from '../data/repo';
 import { colors, spacing } from '../theme';
 
@@ -88,13 +81,8 @@ export default function BudgetFormScreen({ navigation, route }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Banner message={error} />
+    <KeyboardAwareScrollView edges={['bottom']} contentContainerStyle={styles.container}>
+      <Banner message={error} />
 
           <Text style={styles.label}>Account</Text>
           {editing ? (
@@ -142,9 +130,7 @@ export default function BudgetFormScreen({ navigation, route }) {
             loading={loading}
             style={{ marginTop: spacing.md }}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScrollView>
   );
 }
 

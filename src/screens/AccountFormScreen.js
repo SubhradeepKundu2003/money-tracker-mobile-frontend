@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Field, Banner, Pill } from '../components/ui';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button, Field, Banner, Pill, KeyboardAwareScrollView } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useRepo } from '../data/repo';
 import { colors, spacing } from '../theme';
@@ -60,13 +52,8 @@ export default function AccountFormScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Banner message={error} />
+    <KeyboardAwareScrollView edges={['bottom']} contentContainerStyle={styles.container}>
+      <Banner message={error} />
 
           <Field
             label="Name"
@@ -107,14 +94,11 @@ export default function AccountFormScreen({ navigation, route }) {
             loading={loading}
             style={{ marginTop: spacing.md }}
           />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg },
   label: {
     fontSize: 13,

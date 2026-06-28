@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Field, Banner } from '../../components/ui';
+import { Button, Field, Banner, KeyboardAwareScrollView } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing } from '../../theme';
 
@@ -49,13 +41,8 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
             <MaterialCommunityIcons
               name="wallet"
               size={56}
@@ -119,14 +106,11 @@ export default function LoginScreen({ navigation }) {
               </Text>
             </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg, paddingTop: spacing.xl, flexGrow: 1, justifyContent: 'center' },
   header: { alignItems: 'center', marginBottom: spacing.xl },
   logo: { marginBottom: spacing.sm },

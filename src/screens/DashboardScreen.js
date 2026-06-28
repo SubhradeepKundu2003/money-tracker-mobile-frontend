@@ -28,18 +28,22 @@ export default function DashboardScreen({ navigation }) {
 
   const load = useCallback(async () => {
     setError(null);
-    try {
-      const range = currentMonthRange();
-      const [sum, accs, txPage] = await Promise.all([
-        transactionsApi.summary(range),
-        accountsApi.list(),
-        transactionsApi.search({ page: 0, size: 5 }),
-      ]);
-      setSummary(sum);
-      setAccounts(accs || []);
-      setRecent(txPage?.content || []);
-    } catch (e) {
-      setError(e.message || 'Could not load your dashboard.');
+    const range = currentMonthRange();
+    // Load independently so one failing endpoint can't blank the whole screen
+    // (e.g. a failed summary must not hide your balance or recent activity).
+    const [sumRes, accsRes, txRes] = await Promise.allSettled([
+      transactionsApi.summary(range),
+      accountsApi.list(),
+      transactionsApi.search({ page: 0, size: 5 }),
+    ]);
+
+    if (accsRes.status === 'fulfilled') setAccounts(accsRes.value || []);
+    if (txRes.status === 'fulfilled') setRecent(txRes.value?.content || []);
+    if (sumRes.status === 'fulfilled') setSummary(sumRes.value);
+
+    const failed = [sumRes, accsRes, txRes].find((r) => r.status === 'rejected');
+    if (failed) {
+      setError(failed.reason?.message || 'Some data could not be loaded.');
     }
   }, [accountsApi, transactionsApi]);
 

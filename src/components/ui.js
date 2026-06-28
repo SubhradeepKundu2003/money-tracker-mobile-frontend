@@ -1,13 +1,46 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { HeaderHeightContext } from '@react-navigation/elements';
 import { colors, radius, spacing, shadow } from '../theme';
+
+// Scrollable screen body that keeps focused text inputs clear of the software
+// keyboard. On iOS we pad the view by the keyboard height, offset by the
+// navigation header so the avoidance lines up under modal/stack headers. On
+// Android the OS handles this via `softwareKeyboardLayoutMode: "pan"` (set in
+// app.json) — which is needed because edge-to-edge windows don't auto-resize —
+// so KeyboardAvoidingView is a no-op there.
+export function KeyboardAwareScrollView({ children, contentContainerStyle, edges }) {
+  // Defaults to 0 when the screen has no header (e.g. auth screens).
+  const headerHeight = React.useContext(HeaderHeightContext) ?? 0;
+  return (
+    <SafeAreaView style={styles.kasSafe} edges={edges}>
+      <KeyboardAvoidingView
+        style={styles.kasFlex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={headerHeight}
+      >
+        <ScrollView
+          contentContainerStyle={contentContainerStyle}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
 
 export function Button({
   title,
@@ -108,6 +141,9 @@ export function EmptyState({ icon, title, subtitle }) {
 }
 
 const styles = StyleSheet.create({
+  kasSafe: { flex: 1, backgroundColor: colors.background },
+  kasFlex: { flex: 1 },
+
   btn: {
     height: 52,
     borderRadius: radius.md,

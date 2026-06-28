@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Field, Banner } from '../../components/ui';
+import { StyleSheet, Text, View } from 'react-native';
+import { Button, Field, Banner, KeyboardAwareScrollView } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing } from '../../theme';
 
@@ -43,13 +35,8 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
             <Text style={styles.title}>Create account</Text>
             <Text style={styles.subtitle}>Start tracking your money in minutes.</Text>
           </View>
@@ -87,14 +74,11 @@ export default function RegisterScreen({ navigation }) {
               Sign in
             </Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: spacing.lg, paddingTop: spacing.xl, flexGrow: 1, justifyContent: 'center' },
   header: { marginBottom: spacing.lg },
   title: { fontSize: 28, fontWeight: '800', color: colors.text },

@@ -10,6 +10,19 @@ export const authApi = {
   logout: (refreshToken) => api.post('/api/auth/logout', { refreshToken }),
 };
 
+// ---- User / profile ----
+export const userApi = {
+  // Switches base currency AND converts all money to it at the live rate.
+  // Returns the updated user object.
+  changeBaseCurrency: (currency) =>
+    api.patch('/api/me/base-currency', { currency }),
+};
+
+// ---- Currencies ----
+export const currenciesApi = {
+  list: () => api.get('/api/currencies'),
+};
+
 // ---- Accounts ----
 export const accountsApi = {
   list: () => api.get('/api/accounts'),
