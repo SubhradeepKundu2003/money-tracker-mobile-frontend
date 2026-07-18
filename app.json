@@ -13,12 +13,13 @@
     "android": {
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.heysakhii.moneytracker"
+      "package": "in.co.subhradeep.money_tracker",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -27,7 +28,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#111111",
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain"

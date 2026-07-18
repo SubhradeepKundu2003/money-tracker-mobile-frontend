@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -10,16 +10,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Banner, EmptyState, Pill } from '../components/ui';
+import { Banner, EmptyState, IconChip, SegmentedControl } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { useRepo } from '../data/repo';
-import { formatMoney, formatDate } from '../utils/format';
+import { formatMoney, formatDate, formatMonthYear } from '../utils/format';
+import { categoryIconName } from '../utils/categoryIcon';
 import { colors, spacing } from '../theme';
 
 const FILTERS = [
-  { key: undefined, label: 'All' },
-  { key: 'INCOME', label: 'Income' },
-  { key: 'EXPENSE', label: 'Expense' },
+  { value: undefined, label: 'All' },
+  { value: 'INCOME', label: 'Income' },
+  { value: 'EXPENSE', label: 'Expenses' },
 ];
 
 const PAGE_SIZE = 20;
@@ -84,58 +85,74 @@ export default function TransactionsScreen({ navigation }) {
     ]);
   };
 
-  const renderItem = ({ item }) => (
-    <Pressable
-      style={styles.row}
-      onLongPress={() => onDelete(item)}
-      onPress={() => navigation.navigate('TransactionForm', { transaction: item })}
-    >
-      <View style={styles.iconWrap}>
-        <MaterialCommunityIcons
-          name={item.type === 'INCOME' ? 'arrow-up-circle' : 'arrow-down-circle'}
-          size={26}
-          color={item.type === 'INCOME' ? colors.income : colors.expense}
-        />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{item.categoryName || item.note || 'Transaction'}</Text>
-        <Text style={styles.rowMeta}>
-          {item.accountName} · {formatDate(item.occurredOn)}
-        </Text>
-      </View>
-      <Text
-        style={[
-          styles.amount,
-          { color: item.type === 'INCOME' ? colors.income : colors.expense },
-        ]}
+  // Transactions arrive newest-first as one flat, paginated list — insert a
+  // month header row wherever the month changes so it reads like the reference
+  // design's "May 2025" section grouping.
+  const listData = useMemo(() => {
+    const out = [];
+    let lastLabel = null;
+    for (const tx of items) {
+      const label = formatMonthYear(tx.occurredOn);
+      if (label !== lastLabel) {
+        out.push({ rowType: 'header', key: `h-${label}`, label });
+        lastLabel = label;
+      }
+      out.push({ rowType: 'tx', key: tx.id, tx });
+    }
+    return out;
+  }, [items]);
+
+  const renderItem = ({ item }) => {
+    if (item.rowType === 'header') {
+      return <Text style={styles.monthHeader}>{item.label}</Text>;
+    }
+    const tx = item.tx;
+    return (
+      <Pressable
+        style={styles.row}
+        onLongPress={() => onDelete(tx)}
+        onPress={() => navigation.navigate('TransactionForm', { transaction: tx })}
       >
-        {item.type === 'INCOME' ? '+' : '−'}
-        {formatMoney(item.amount, baseCurrency)}
-      </Text>
-    </Pressable>
-  );
+        <IconChip
+          icon={
+            <MaterialCommunityIcons
+              name={categoryIconName(tx.categoryName, tx.type)}
+              size={20}
+              color={colors.text}
+            />
+          }
+        />
+        <View style={styles.rowBody}>
+          <Text style={styles.rowTitle}>{tx.categoryName || tx.note || 'Transaction'}</Text>
+          <Text style={styles.rowMeta}>{formatDate(tx.occurredOn)}</Text>
+        </View>
+        <Text
+          style={[
+            styles.amount,
+            { color: tx.type === 'INCOME' ? colors.income : colors.expense },
+          ]}
+        >
+          {tx.type === 'INCOME' ? '+ ' : '− '}
+          {formatMoney(tx.amount, baseCurrency)}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <Text style={styles.title}>Transactions</Text>
       <View style={styles.filterRow}>
-        {FILTERS.map((f) => (
-          <Pill
-            key={f.label}
-            label={f.label}
-            active={type === f.key}
-            onPress={() => setType(f.key)}
-          />
-        ))}
+        <SegmentedControl options={FILTERS} value={type} onChange={setType} />
       </View>
       <View style={{ paddingHorizontal: spacing.lg }}>
         <Banner message={error} />
       </View>
       <FlatList
-        data={items}
-        keyExtractor={(t) => t.id}
+        data={listData}
+        keyExtractor={(item) => item.key}
         renderItem={renderItem}
-        contentContainerStyle={items.length === 0 ? styles.emptyList : styles.list}
+        contentContainerStyle={listData.length === 0 ? styles.emptyList : styles.list}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.4}
         ListEmptyComponent={
@@ -162,24 +179,25 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   filterRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl },
   emptyList: { flexGrow: 1, justifyContent: 'center' },
+  monthHeader: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  iconWrap: { marginRight: spacing.md },
+  rowBody: { flex: 1, marginLeft: spacing.md },
   rowTitle: { fontSize: 15, fontWeight: '600', color: colors.text },
   rowMeta: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   amount: { fontSize: 15, fontWeight: '800' },

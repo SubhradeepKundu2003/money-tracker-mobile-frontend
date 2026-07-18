@@ -245,6 +245,21 @@ export const localTransactions = {
     const tx = all.find((t) => t.id === id);
     return tx ? decorate(tx, accounts, categories) : null;
   },
+  // Per-day income/expense totals within [from, to] — backs the dashboard's
+  // "This Month Overview" bar chart.
+  async dailyTotals({ from, to } = {}) {
+    let items = await read(K.transactions);
+    if (from) items = items.filter((t) => t.occurredOn >= from);
+    if (to) items = items.filter((t) => t.occurredOn <= to);
+    const byDay = {};
+    for (const t of items) {
+      const bucket = byDay[t.occurredOn] || { day: t.occurredOn, income: 0, expense: 0 };
+      if (t.type === 'INCOME') bucket.income += Number(t.amount);
+      else bucket.expense += Number(t.amount);
+      byDay[t.occurredOn] = bucket;
+    }
+    return Object.values(byDay).sort((a, b) => (a.day < b.day ? -1 : 1));
+  },
   async create({ accountId, categoryId, type, amount, occurredOn, note }) {
     const [all, accounts, categories] = await Promise.all([
       read(K.transactions),

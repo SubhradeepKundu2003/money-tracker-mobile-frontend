@@ -45,3 +45,19 @@ export function currentMonthRange() {
     ).padStart(2, '0')}`;
   return { from: fmt(first), to: fmt(last) };
 }
+
+/** "Good morning" / "Good afternoon" / "Good evening" based on the local clock. */
+export function greetingForNow() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** e.g. "May 2025" — used as a section header when grouping transactions by month. */
+export function formatMonthYear(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'long' });
+}

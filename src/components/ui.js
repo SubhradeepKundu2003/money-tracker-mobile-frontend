@@ -114,6 +114,35 @@ export function Pill({ label, active, onPress, color }) {
   );
 }
 
+export function IconChip({ icon, size = 40 }) {
+  return (
+    <View style={[styles.iconChip, { width: size, height: size, borderRadius: size / 2 }]}>
+      {icon}
+    </View>
+  );
+}
+
+export function SegmentedControl({ options, value, onChange }) {
+  return (
+    <View style={styles.segment}>
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <Pressable
+            key={opt.value ?? 'all'}
+            onPress={() => onChange(opt.value)}
+            style={[styles.segmentItem, active && styles.segmentItemActive]}
+          >
+            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function Banner({ message, type = 'error' }) {
   if (!message) return null;
   return (
@@ -197,6 +226,28 @@ const styles = StyleSheet.create({
   },
   pillText: { color: colors.textMuted, fontWeight: '600', fontSize: 13 },
   pillTextActive: { color: '#fff' },
+
+  iconChip: {
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  segment: {
+    flexDirection: 'row',
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.md,
+    padding: 4,
+  },
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  segmentItemActive: { backgroundColor: colors.primary },
+  segmentText: { color: colors.textMuted, fontWeight: '700', fontSize: 13 },
+  segmentTextActive: { color: '#fff' },
 
   banner: {
     borderRadius: radius.md,
