@@ -1,10 +1,3 @@
-import { useAuth } from '../context/AuthContext';
-import {
-  accountsApi,
-  categoriesApi,
-  transactionsApi,
-  budgetsApi,
-} from '../api/endpoints';
 import {
   localAccounts,
   localCategories,
@@ -12,7 +5,6 @@ import {
   localBudgets,
 } from './localStore';
 
-const remoteRepo = { accountsApi, categoriesApi, transactionsApi, budgetsApi };
 const localRepo = {
   accountsApi: localAccounts,
   categoriesApi: localCategories,
@@ -20,11 +12,7 @@ const localRepo = {
   budgetsApi: localBudgets,
 };
 
-/**
- * Returns the active data source. Guests read/write the device; authenticated
- * users hit the backend. The same method names mean screens don't branch.
- */
+/** Everything is stored on-device — this hook exists so screens keep one call site. */
 export function useRepo() {
-  const { isGuest } = useAuth();
-  return isGuest ? localRepo : remoteRepo;
+  return localRepo;
 }

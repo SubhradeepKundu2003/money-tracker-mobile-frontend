@@ -33,10 +33,7 @@
           "resizeMode": "contain"
         }
       ],
-      "expo-secure-store"
-    ],
-    "extra": {
-      "apiUrl": "https://money-tracker1.duckdns.org"
-    }
+      "expo-sharing"
+    ]
   }
 }

@@ -5,11 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 
-import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import TransactionsScreen from '../screens/TransactionsScreen';
 import TransactionFormScreen from '../screens/TransactionFormScreen';
@@ -89,15 +86,6 @@ function MainTabs() {
   );
 }
 
-function AuthStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-    </Stack.Navigator>
-  );
-}
-
 function AppStack() {
   return (
     <Stack.Navigator
@@ -133,26 +121,14 @@ function AppStack() {
           presentation: 'modal',
         })}
       />
-      {/* Reachable by guests from Profile to sync their data into an account. */}
-      <Stack.Screen
-        name="Login"
-        component={LoginScreen}
-        options={{ headerShown: false, presentation: 'modal' }}
-      />
-      <Stack.Screen
-        name="Register"
-        component={RegisterScreen}
-        options={{ headerShown: false, presentation: 'modal' }}
-      />
     </Stack.Navigator>
   );
 }
 
 export default function RootNavigator() {
-  const { user } = useAuth();
   return (
     <NavigationContainer>
-      {user ? <AppStack /> : <AuthStack />}
+      <AppStack />
     </NavigationContainer>
   );
 }

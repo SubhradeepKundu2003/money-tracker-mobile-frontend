@@ -2,11 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
 /**
- * Guest data layer. Persists accounts, categories and transactions in
- * AsyncStorage and exposes the SAME method shapes as src/api/endpoints.js so the
- * screens can stay agnostic about whether they talk to the backend or the
- * device. Balance bookkeeping mirrors the backend: INCOME adds, EXPENSE
- * subtracts; updates reverse-then-reapply; deletes reverse.
+ * On-device data layer — the app's only data source. Persists accounts,
+ * categories, transactions and budgets in AsyncStorage. Balance bookkeeping:
+ * INCOME adds, EXPENSE subtracts; updates reverse-then-reapply; deletes reverse.
  */
 
 const K = {
@@ -72,7 +70,7 @@ export async function hasGuestData() {
   return accounts.length > 0 || transactions.length > 0;
 }
 
-// Snapshot used by the migration routine.
+// Snapshot used by the JSON backup export (src/data/backup.js).
 export async function exportGuestData() {
   const [accounts, categories, transactions, budgets] = await Promise.all([
     read(K.accounts),
@@ -81,6 +79,18 @@ export async function exportGuestData() {
     read(K.budgets),
   ]);
   return { accounts, categories, transactions, budgets };
+}
+
+// Replaces all on-device data with a previously exported snapshot.
+export async function importGuestData({ accounts = [], categories = [], transactions = [], budgets = [] }) {
+  await Promise.all([
+    write(K.accounts, accounts),
+    write(K.categories, categories),
+    write(K.transactions, transactions),
+    write(K.budgets, budgets),
+  ]);
+  // Data is now present — don't let seedGuestIfNeeded overwrite it with defaults.
+  await AsyncStorage.setItem(K.seeded, '1');
 }
 
 function decorate(tx, accounts, categories) {

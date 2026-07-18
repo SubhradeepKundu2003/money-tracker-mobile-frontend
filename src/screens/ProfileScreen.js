@@ -1,82 +1,75 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Button } from '../components/ui';
-import CurrencyPicker from '../components/CurrencyPicker';
 import { useAuth } from '../context/AuthContext';
-import { userApi } from '../api/endpoints';
-import { API_URL } from '../config';
+import { exportBackup, importBackup } from '../data/backup';
 import { colors, spacing, radius } from '../theme';
 
-export default function ProfileScreen({ navigation }) {
-  const { user, isGuest, signOut, resetGuestData, setUser } = useAuth();
+export default function ProfileScreen() {
+  const { user, resetLocalData } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [changingCurrency, setChangingCurrency] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
-  const onChangeCurrencyPress = () => {
-    if (isGuest) {
-      Alert.alert(
-        'Sign in to change currency',
-        'Converting your balances uses live exchange rates on the server, so it needs a synced account.',
-        [
-          { text: 'Not now', style: 'cancel' },
-          { text: 'Sign in', onPress: () => navigation.navigate('Login') },
-        ],
-      );
-      return;
+  const onExport = async () => {
+    setExporting(true);
+    try {
+      await exportBackup();
+    } catch (e) {
+      Alert.alert('Could not export data', e?.message || 'Please try again.');
+    } finally {
+      setExporting(false);
     }
-    setPickerOpen(true);
   };
 
-  const onSelectCurrency = (currency) => {
-    setPickerOpen(false);
-    if (!currency || currency.code === user?.baseCurrency) return;
+  const runImport = async () => {
+    setImporting(true);
+    try {
+      const payload = await importBackup();
+      if (!payload) return; // user canceled the file picker
+      Alert.alert(
+        'Import complete',
+        `Imported ${payload.accounts.length} accounts, ${payload.transactions.length} transactions, and ${payload.budgets.length} budgets.`,
+      );
+    } catch (e) {
+      Alert.alert('Could not import data', e?.message || 'Please try again.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const onImport = () => {
     Alert.alert(
-      `Convert everything to ${currency.code}?`,
-      `All account balances, transactions, and budgets will be converted from ${user?.baseCurrency} to ${currency.name} (${currency.code}) at today's exchange rate.`,
+      'Import backup?',
+      'This replaces every account, transaction, and budget currently on this device. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Import', style: 'destructive', onPress: runImport },
+      ],
+    );
+  };
+
+  const onClearData = () => {
+    Alert.alert(
+      'Clear all data?',
+      'This erases every account, transaction, and budget stored on this device. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Convert',
+          text: 'Clear',
+          style: 'destructive',
           onPress: async () => {
-            setChangingCurrency(true);
+            setLoading(true);
             try {
-              const updated = await userApi.changeBaseCurrency(currency.code);
-              setUser(updated);
-              Alert.alert('Done', `Your money is now shown in ${currency.code}.`);
-            } catch (e) {
-              Alert.alert('Could not change currency', e?.message || 'Please try again.');
+              await resetLocalData();
             } finally {
-              setChangingCurrency(false);
+              setLoading(false);
             }
           },
         },
       ],
     );
-  };
-
-  const onDangerAction = async () => {
-    const run = async (fn) => {
-      setLoading(true);
-      try {
-        await fn();
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (isGuest) {
-      Alert.alert(
-        'Clear all data?',
-        'This erases every account and transaction stored on this device. Sync first if you want to keep it.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Clear', style: 'destructive', onPress: () => run(resetGuestData) },
-        ],
-      );
-    } else {
-      run(signOut);
-    }
   };
 
   return (
@@ -87,78 +80,52 @@ export default function ProfileScreen({ navigation }) {
         <Card style={styles.card}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {(user?.displayName || user?.email || '?').charAt(0).toUpperCase()}
+              {(user?.displayName || '?').charAt(0).toUpperCase()}
             </Text>
           </View>
-          <Text style={styles.name}>{user?.displayName || 'User'}</Text>
-          <Text style={styles.email}>{isGuest ? 'Guest mode' : user?.email}</Text>
+          <Text style={styles.name}>{user?.displayName || 'You'}</Text>
+          <Text style={styles.email}>All data is stored on this device.</Text>
         </Card>
 
-        {isGuest && (
-          <View style={styles.guestBox}>
-            <Text style={styles.guestTitle}>You're using a guest account</Text>
-            <Text style={styles.guestBody}>
-              Everything you add is stored on this device only. Create an account
-              or sign in to back it up to the cloud — your current data comes with
-              you.
-            </Text>
-            <Button
-              title="Sync & sign in"
-              onPress={() => navigation.navigate('Login')}
-              style={{ marginTop: spacing.md }}
-            />
-          </View>
-        )}
+        <Card style={styles.card}>
+          <Row label="Base currency" value={user?.baseCurrency || '—'} last />
+        </Card>
 
         <Card style={styles.card}>
-          <Row
-            label="Base currency"
-            value={user?.baseCurrency || '—'}
-            onPress={onChangeCurrencyPress}
-            busy={changingCurrency}
+          <Text style={styles.cardTitle}>Backup</Text>
+          <Button
+            title="Export data"
+            variant="secondary"
+            onPress={onExport}
+            loading={exporting}
           />
-          <Row label="Role" value={user?.role || '—'} />
-          <Row label="API endpoint" value={API_URL} last />
+          <Button
+            title="Import data"
+            variant="secondary"
+            onPress={onImport}
+            loading={importing}
+            style={{ marginTop: spacing.sm }}
+          />
         </Card>
 
         <Button
-          title={isGuest ? 'Clear all data' : 'Sign out'}
+          title="Clear all data"
           variant="danger"
-          onPress={onDangerAction}
+          onPress={onClearData}
           loading={loading}
           style={{ marginTop: spacing.lg }}
         />
       </ScrollView>
-
-      <CurrencyPicker
-        visible={pickerOpen}
-        currentCode={user?.baseCurrency}
-        onClose={() => setPickerOpen(false)}
-        onSelect={onSelectCurrency}
-      />
     </SafeAreaView>
   );
 }
 
-function Row({ label, value, last, onPress, busy }) {
-  const content = (
+function Row({ label, value, last }) {
+  return (
     <View style={[styles.row, !last && styles.rowDivider]}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowRight}>
-        {busy ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : (
-          <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>
-        )}
-        {onPress ? <Text style={styles.rowChevron}>›</Text> : null}
-      </View>
+      <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>
     </View>
-  );
-  if (!onPress) return content;
-  return (
-    <Pressable onPress={onPress} disabled={busy} style={({ pressed }) => pressed && styles.rowPressed}>
-      {content}
-    </Pressable>
   );
 }
 
@@ -167,14 +134,7 @@ const styles = StyleSheet.create({
   container: { padding: spacing.lg },
   title: { fontSize: 24, fontWeight: '800', color: colors.text, marginBottom: spacing.lg },
   card: { marginBottom: spacing.md, alignItems: 'stretch' },
-  guestBox: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  guestTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
-  guestBody: { fontSize: 14, color: colors.textMuted, marginTop: spacing.xs, lineHeight: 20 },
+  cardTitle: { fontSize: 13, fontWeight: '700', color: colors.textMuted, marginBottom: spacing.sm },
   avatar: {
     alignSelf: 'center',
     width: 72,
@@ -196,8 +156,5 @@ const styles = StyleSheet.create({
   },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLabel: { color: colors.textMuted, fontWeight: '600' },
-  rowRight: { flexDirection: 'row', alignItems: 'center', flexShrink: 1, marginLeft: spacing.md },
-  rowValue: { color: colors.text, fontWeight: '600', flexShrink: 1 },
-  rowChevron: { color: colors.textMuted, fontSize: 22, marginLeft: spacing.sm, marginTop: -2 },
-  rowPressed: { opacity: 0.6 },
+  rowValue: { color: colors.text, fontWeight: '600', flexShrink: 1, marginLeft: spacing.md },
 });
