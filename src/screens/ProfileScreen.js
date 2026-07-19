@@ -1,16 +1,29 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, Button } from '../components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { Card, Button, PromptModal } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 import { exportBackup, importBackup } from '../data/backup';
 import { colors, spacing, radius } from '../theme';
 
 export default function ProfileScreen() {
-  const { user, resetLocalData } = useAuth();
+  const {
+    user,
+    profiles,
+    activeProfile,
+    switchProfile,
+    createProfile,
+    renameProfile,
+    removeProfile,
+    resetLocalData,
+  } = useAuth();
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [profileError, setProfileError] = useState(null);
 
   const onExport = async () => {
     setExporting(true);
@@ -42,7 +55,7 @@ export default function ProfileScreen() {
   const onImport = () => {
     Alert.alert(
       'Import backup?',
-      'This replaces every account, transaction, and budget currently on this device. This cannot be undone.',
+      `This replaces every account, transaction, and budget in "${activeProfile?.name || 'this profile'}". This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Import', style: 'destructive', onPress: runImport },
@@ -53,7 +66,7 @@ export default function ProfileScreen() {
   const onClearData = () => {
     Alert.alert(
       'Clear all data?',
-      'This erases every account, transaction, and budget stored on this device. This cannot be undone.',
+      `This erases every account, transaction, and budget in "${activeProfile?.name || 'this profile'}". This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -65,6 +78,49 @@ export default function ProfileScreen() {
               await resetLocalData();
             } finally {
               setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const onAddProfile = async (name) => {
+    if (!name) return;
+    setProfileError(null);
+    try {
+      await createProfile(name);
+      setAddOpen(false);
+    } catch (e) {
+      setProfileError(e.message || 'Could not add profile.');
+    }
+  };
+
+  const onRenameProfile = async (name) => {
+    if (!name || !renameTarget) return;
+    setProfileError(null);
+    try {
+      await renameProfile(renameTarget.id, name);
+      setRenameTarget(null);
+    } catch (e) {
+      setProfileError(e.message || 'Could not rename profile.');
+    }
+  };
+
+  const onRemoveProfile = (profile) => {
+    Alert.alert(
+      'Delete profile?',
+      `This erases every account, transaction, and budget in "${profile.name}". This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removeProfile(profile.id);
+            } catch (e) {
+              Alert.alert('Could not delete profile', e?.message || 'Please try again.');
             }
           },
         },
@@ -92,6 +148,52 @@ export default function ProfileScreen() {
         </Card>
 
         <Card style={styles.card}>
+          <Text style={styles.cardTitle}>Profiles</Text>
+          {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
+          {profiles.map((p) => {
+            const active = p.id === activeProfile?.id;
+            return (
+              <View key={p.id} style={styles.profileRow}>
+                <Pressable
+                  style={styles.profileNameBtn}
+                  onPress={() => !active && switchProfile(p.id)}
+                >
+                  <View style={[styles.radioDot, active && styles.radioDotActive]} />
+                  <Text
+                    style={[styles.profileName, active && styles.profileNameActive]}
+                    numberOfLines={1}
+                  >
+                    {p.name}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setRenameTarget(p)}
+                  hitSlop={8}
+                  style={styles.profileIconBtn}
+                >
+                  <Ionicons name="pencil-outline" size={18} color={colors.textMuted} />
+                </Pressable>
+                {profiles.length > 1 && (
+                  <Pressable
+                    onPress={() => onRemoveProfile(p)}
+                    hitSlop={8}
+                    style={styles.profileIconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+          <Button
+            title="Add profile"
+            variant="secondary"
+            onPress={() => setAddOpen(true)}
+            style={{ marginTop: spacing.sm }}
+          />
+        </Card>
+
+        <Card style={styles.card}>
           <Text style={styles.cardTitle}>Backup</Text>
           <Button
             title="Export data"
@@ -116,6 +218,24 @@ export default function ProfileScreen() {
           style={{ marginTop: spacing.lg }}
         />
       </ScrollView>
+
+      <PromptModal
+        visible={addOpen}
+        title="New profile"
+        placeholder="e.g. Mom, Dad, Business"
+        submitLabel="Add"
+        onCancel={() => setAddOpen(false)}
+        onSubmit={onAddProfile}
+      />
+      <PromptModal
+        visible={!!renameTarget}
+        title="Rename profile"
+        placeholder="Profile name"
+        initialValue={renameTarget?.name}
+        submitLabel="Save"
+        onCancel={() => setRenameTarget(null)}
+        onSubmit={onRenameProfile}
+      />
     </SafeAreaView>
   );
 }
@@ -157,4 +277,25 @@ const styles = StyleSheet.create({
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.border },
   rowLabel: { color: colors.textMuted, fontWeight: '600' },
   rowValue: { color: colors.text, fontWeight: '600', flexShrink: 1, marginLeft: spacing.md },
+  error: { color: colors.danger, fontSize: 13, marginBottom: spacing.sm },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  profileNameBtn: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  radioDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  radioDotActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  profileName: { fontSize: 15, fontWeight: '600', color: colors.text, flexShrink: 1 },
+  profileNameActive: { color: colors.primary },
+  profileIconBtn: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
 });

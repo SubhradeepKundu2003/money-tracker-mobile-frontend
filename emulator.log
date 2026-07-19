@@ -242,3 +242,7 @@ INFO         | Ignore IPv6 address: a8de:fcd4:c401:0:d0b8:fcd4:c401:0
 INFO         | Ignore IPv6 address: a8de:fcd4:c401:0:d0b8:fcd4:c401:0
 INFO         | Ignore IPv6 address: a8de:fcd4:c401:0:d0b8:fcd4:c401:0
 INFO         | Critical: UpdateLayeredWindowIndirect failed for ptDst=(574, -788), size=(375x26), dirty=(375x26 0, 0) (A device attached to the system is not functioning.) (:0, )
+INFO         | Wait for emulator (pid 39400) 20 seconds to shutdown gracefully before kill;you can set environment variable ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL(in seconds) to change the default value (20 seconds)
+
+INFO         | Saving with gfxstream=1
+INFO         | Saving snapshot 'default_boot' using 2101 ms

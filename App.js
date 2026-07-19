@@ -27,9 +27,14 @@ function Gate() {
 
   const onSplashFinish = useCallback(() => setSplashDone(true), []);
 
+  // Wait for the active profile to be resolved before mounting the navigator —
+  // screens fetch profile-scoped data as soon as they mount, and doing that
+  // before a profile is active would read/write the wrong namespace. The
+  // splash overlay covers this whole window anyway, so nothing is skipped
+  // visually.
   return (
     <>
-      <RootNavigator />
+      {!bootstrapping && <RootNavigator />}
       {!splashDone && (
         <AnimatedSplash visible={!bootstrapping} onFinish={onSplashFinish} />
       )}

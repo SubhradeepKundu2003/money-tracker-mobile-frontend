@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -159,6 +160,55 @@ export function Banner({ message, type = 'error' }) {
   );
 }
 
+// A modal text-input prompt for quick create/rename flows (e.g. profiles) —
+// there's no native Alert.prompt on Android, so this is the cross-platform
+// equivalent, styled to match DateField's modal.
+export function PromptModal({
+  visible,
+  title,
+  placeholder,
+  initialValue = '',
+  submitLabel = 'Save',
+  onSubmit,
+  onCancel,
+}) {
+  const [value, setValue] = React.useState(initialValue);
+
+  React.useEffect(() => {
+    if (visible) setValue(initialValue);
+  }, [visible, initialValue]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={styles.backdrop} onPress={onCancel}>
+        <Pressable style={styles.promptCard} onPress={() => {}}>
+          {title ? <Text style={styles.promptTitle}>{title}</Text> : null}
+          <TextInput
+            autoFocus
+            value={value}
+            onChangeText={setValue}
+            placeholder={placeholder}
+            placeholderTextColor={colors.textMuted}
+            style={styles.input}
+            returnKeyType="done"
+            onSubmitEditing={() => onSubmit(value.trim())}
+          />
+          <View style={styles.promptActions}>
+            <Pressable onPress={onCancel} hitSlop={8} style={styles.promptBtn}>
+              <Text style={styles.promptBtnText}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={() => onSubmit(value.trim())} hitSlop={8} style={styles.promptBtn}>
+              <Text style={[styles.promptBtnText, styles.promptBtnTextPrimary]}>
+                {submitLabel}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export function EmptyState({ icon, title, subtitle }) {
   return (
     <View style={styles.empty}>
@@ -257,6 +307,36 @@ const styles = StyleSheet.create({
   bannerError: { backgroundColor: '#F2F2F2', borderWidth: 1, borderColor: '#D4D4D4' },
   bannerSuccess: { backgroundColor: '#F2F2F2', borderWidth: 1, borderColor: '#D4D4D4' },
   bannerText: { color: colors.text, fontSize: 14 },
+
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  promptCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
+  promptTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  promptActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.lg,
+    marginTop: spacing.md,
+  },
+  promptBtn: { paddingVertical: spacing.xs, paddingHorizontal: spacing.sm },
+  promptBtnText: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
+  promptBtnTextPrimary: { color: colors.primary },
 
   empty: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyIcon: { marginBottom: spacing.sm },

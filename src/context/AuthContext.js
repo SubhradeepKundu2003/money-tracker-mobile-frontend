@@ -5,51 +5,118 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { seedGuestIfNeeded, clearGuestData } from '../data/localStore';
+import {
+  initActiveProfile,
+  localProfiles,
+  clearProfileData,
+  seedProfileIfNeeded,
+} from '../data/localStore';
 
 const AuthContext = createContext(null);
 
-const LOCAL_USER = {
-  id: 'local',
-  displayName: 'You',
-  baseCurrency: 'INR',
-};
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [profiles, setProfiles] = useState([]);
+  const [activeProfileId, setActiveProfileIdState] = useState(null);
   const [bootstrapping, setBootstrapping] = useState(true);
 
-  // Seeds the on-device store (once) and makes it the active profile. This is
-  // the app's only mode — there is no login wall and no server sync.
-  const initLocalUser = useCallback(async () => {
-    await seedGuestIfNeeded();
-    setUser(LOCAL_USER);
+  // Loads the profile list (migrating any pre-multi-profile data into a
+  // default profile the first time) and activates one. This is the app's
+  // only mode — there is no login wall and no server sync.
+  const init = useCallback(async () => {
+    const result = await initActiveProfile();
+    setProfiles(result.profiles);
+    setActiveProfileIdState(result.activeProfileId);
   }, []);
-
-  // Wipe all on-device data and reseed the defaults.
-  const resetLocalData = useCallback(async () => {
-    await clearGuestData();
-    await initLocalUser();
-  }, [initLocalUser]);
 
   React.useEffect(() => {
     (async () => {
       try {
-        await initLocalUser();
+        await init();
       } finally {
         setBootstrapping(false);
       }
     })();
-  }, [initLocalUser]);
+  }, [init]);
+
+  const switchProfile = useCallback(async (id) => {
+    await localProfiles.switchTo(id);
+    setActiveProfileIdState(id);
+  }, []);
+
+  const createProfile = useCallback(
+    async (name) => {
+      const profile = await localProfiles.create(name);
+      setProfiles((prev) => [...prev, profile]);
+      await switchProfile(profile.id);
+      return profile;
+    },
+    [switchProfile],
+  );
+
+  const renameProfile = useCallback(async (id, name) => {
+    const updated = await localProfiles.rename(id, name);
+    setProfiles((prev) => prev.map((p) => (p.id === id ? updated : p)));
+    return updated;
+  }, []);
+
+  const removeProfile = useCallback(
+    async (id) => {
+      const remaining = await localProfiles.remove(id);
+      setProfiles(remaining);
+      if (id === activeProfileId) {
+        await switchProfile(remaining[0].id);
+      }
+    },
+    [activeProfileId, switchProfile],
+  );
+
+  // Wipe the active profile's data and reseed its defaults — other profiles
+  // on this device are untouched.
+  const resetLocalData = useCallback(async () => {
+    await clearProfileData();
+    await seedProfileIfNeeded();
+  }, []);
+
+  const activeProfile = useMemo(
+    () => profiles.find((p) => p.id === activeProfileId) || null,
+    [profiles, activeProfileId],
+  );
+
+  // Kept for screens that only care about "the current user" — mirrors the
+  // active profile so ProfileScreen etc. don't need to change shape.
+  const user = useMemo(
+    () =>
+      activeProfile
+        ? { id: activeProfile.id, displayName: activeProfile.name, baseCurrency: 'INR' }
+        : null,
+    [activeProfile],
+  );
 
   const value = useMemo(
     () => ({
       user,
+      profiles,
+      activeProfile,
+      activeProfileId,
       bootstrapping,
+      switchProfile,
+      createProfile,
+      renameProfile,
+      removeProfile,
       resetLocalData,
-      setUser,
     }),
-    [user, bootstrapping, resetLocalData],
+    [
+      user,
+      profiles,
+      activeProfile,
+      activeProfileId,
+      bootstrapping,
+      switchProfile,
+      createProfile,
+      renameProfile,
+      removeProfile,
+      resetLocalData,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

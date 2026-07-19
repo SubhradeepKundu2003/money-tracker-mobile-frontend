@@ -2,14 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Field, Banner, Pill, EmptyState, KeyboardAwareScrollView } from '../components/ui';
+import { Button, Field, Banner, Pill, EmptyState, KeyboardAwareScrollView, PromptModal } from '../components/ui';
 import { useRepo } from '../data/repo';
+import { useAuth } from '../context/AuthContext';
 import { colors, spacing } from '../theme';
 
 const PERIODS = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
 
 export default function BudgetFormScreen({ navigation, route }) {
   const { accountsApi, budgetsApi } = useRepo();
+  const { profiles, activeProfile, switchProfile, createProfile } = useAuth();
   const editing = route.params?.budget;
   // Account and period type are structural on the backend — only the limit is
   // editable once a budget exists.
@@ -21,6 +23,7 @@ export default function BudgetFormScreen({ navigation, route }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [addProfileOpen, setAddProfileOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -35,6 +38,42 @@ export default function BudgetFormScreen({ navigation, route }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reloads this profile's accounts and resets the selection — used after
+  // switching or creating a profile, since accounts are namespaced per profile.
+  const reloadForActiveProfile = async () => {
+    try {
+      const accs = (await accountsApi.list()) || [];
+      const active = accs.filter((a) => !a.archived);
+      setAccounts(active);
+      setAccountId(active.length ? active[0].id : null);
+    } catch (e) {
+      setError(e.message || 'Could not load accounts.');
+    }
+  };
+
+  const onSwitchProfile = async (id) => {
+    if (id === activeProfile?.id) return;
+    setError(null);
+    try {
+      await switchProfile(id);
+      await reloadForActiveProfile();
+    } catch (e) {
+      setError(e.message || 'Could not switch profile.');
+    }
+  };
+
+  const onCreateProfile = async (name) => {
+    if (!name) return;
+    setError(null);
+    try {
+      await createProfile(name);
+      await reloadForActiveProfile();
+      setAddProfileOpen(false);
+    } catch (e) {
+      setError(e.message || 'Could not create profile.');
+    }
+  };
 
   const onSubmit = async () => {
     setError(null);
@@ -68,14 +107,46 @@ export default function BudgetFormScreen({ navigation, route }) {
     }
   };
 
+  const profileRow = !editing && (
+    <>
+      <Text style={styles.label}>Profile</Text>
+      <View style={styles.pillRow}>
+        {profiles.map((p) => (
+          <Pill
+            key={p.id}
+            label={p.name}
+            active={activeProfile?.id === p.id}
+            onPress={() => onSwitchProfile(p.id)}
+          />
+        ))}
+        <Pill label="+ New" onPress={() => setAddProfileOpen(true)} />
+      </View>
+    </>
+  );
+
+  const addProfileModal = (
+    <PromptModal
+      visible={addProfileOpen}
+      title="New profile"
+      placeholder="e.g. Mom, Dad, Business"
+      submitLabel="Add"
+      onCancel={() => setAddProfileOpen(false)}
+      onSubmit={onCreateProfile}
+    />
+  );
+
   if (!editing && accounts.length === 0 && !error) {
     return (
       <SafeAreaView style={styles.safe}>
-        <EmptyState
-          icon={<MaterialCommunityIcons name="bank-outline" size={44} color={colors.textMuted} />}
-          title="No accounts yet"
-          subtitle="Create an account first, then set a budget for it."
-        />
+        <View style={styles.container}>
+          {profileRow}
+          <EmptyState
+            icon={<MaterialCommunityIcons name="bank-outline" size={44} color={colors.textMuted} />}
+            title="No accounts yet"
+            subtitle="Create an account first, then set a budget for it."
+          />
+        </View>
+        {addProfileModal}
       </SafeAreaView>
     );
   }
@@ -83,6 +154,8 @@ export default function BudgetFormScreen({ navigation, route }) {
   return (
     <KeyboardAwareScrollView edges={['bottom']} contentContainerStyle={styles.container}>
       <Banner message={error} />
+
+          {profileRow}
 
           <Text style={styles.label}>Account</Text>
           {editing ? (
@@ -130,6 +203,7 @@ export default function BudgetFormScreen({ navigation, route }) {
             loading={loading}
             style={{ marginTop: spacing.md }}
           />
+          {addProfileModal}
     </KeyboardAwareScrollView>
   );
 }
